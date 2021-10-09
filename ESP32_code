@@ -1,0 +1,80 @@
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include "DHT.h"
+#define DHTPIN 27
+#define DHTTYPE DHT11 
+ 
+const char* ssid     = "*******NOME DA REDE WIFI"*******";
+const char* password = "*******SENHA DA REDE WIFI"*******";
+const char* host = "script.google.com"; 
+const char* fingerprint = "*******AUTORIZAÇÃO DA SUA PLANILHA"*******";
+String url;
+
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(115200);
+  delay(100);
+  dht.begin();
+  Serial.println();
+  Serial.println();
+  Serial.print("Conectando a ");
+  Serial.println(ssid);
+  
+  WiFi.begin(ssid, password); 
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+ 
+  Serial.println("");
+  Serial.println("WiFi conectado");  
+  Serial.println("Endereço de IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Netmask: ");
+  Serial.println(WiFi.subnetMask());
+  Serial.print("Gateway: ");
+  Serial.println(WiFi.gatewayIP());
+}
+void loop() {
+ 
+  Serial.print("conectando a ");
+  Serial.println(host);
+ 
+  WiFiClientSecure client;
+
+  const int httpPort = 443;
+  if (!client.connect(host, httpPort)) {
+    Serial.println("falha na conexão...");
+    return;
+  }
+
+ if (client.verify(fingerprint, host)) {
+  Serial.println("certificado aceito");
+  } else {
+  Serial.println("o certificado não foi aceito");
+  }
+
+  float t = dht.readTemperature();
+  if (isnan(t)) {
+     Serial.println("Falha na leitura do DHT11!");
+     return;
+  }
+  
+  url = "***!!! ENDEREÇO DA SUA APLICAÇÃO WEB a partir de /macros !!!***"+"?func=addData&val="+String(t);
+  Serial.print("Requesting URL: ");
+  Serial.println(url);
+  
+  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+               "Host: " + host + "\r\n" + 
+               "Connection: close\r\n\r\n");
+  delay(500);
+  String section="header";
+  while(client.available()){
+    String line = client.readStringUntil('\r');
+    Serial.print(line);
+  }
+  Serial.println();
+  Serial.println("terminando a conexão");
+  delay(60000);
+}
